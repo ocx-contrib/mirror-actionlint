@@ -384,3 +384,4 @@ jobs:
           ocx-mirror pipeline notify --run-summary run-summary.json
         env:
           OCX_MIRROR_DISCORD_HOOK: ${{ secrets.OCX_MIRROR_DISCORD_HOOK }}
+          OCX_MIRROR_DISCORD_USER_ID: "227748867204972545"

@@ -73,3 +73,4 @@ platforms:
 notify:
   discord:
     webhook_secret: OCX_MIRROR_DISCORD_HOOK
+    user_id: "227748867204972545"

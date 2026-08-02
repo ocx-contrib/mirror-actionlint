@@ -1,0 +1,108 @@
+extends: ../mirror-base.yml
+
+name: actionlint
+
+# Logical index package `actionlint/actionlint` at the physical path
+# `ghcr.io/ocx-contrib/actionlint/actionlint` — slash segments, never
+# hyphen-flattened. The first segment must be this repo's own GitHub owner:
+# GITHUB_TOKEN only authorises packages owned by the repo the workflow runs in.
+#
+# Tool-as-namespace: upstream lives under the personal handle `rhysd`, which
+# names a person rather than a vendor, so the tool names itself. Provenance
+# stays in the index entry's `upstream` field, not in the coordinate.
+#
+# Succeeds the flat `ocx.sh/actionlint` coordinate this repository published
+# before the grouped layout.
+target:
+  registry: ghcr.io
+  repository: ocx-contrib/actionlint/actionlint
+
+source:
+  type: github_release
+  owner: rhysd
+  repo: actionlint
+  tag_pattern: "^v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+
+# ─── libc gate (Phase 3.5) — the evidence, not the conclusion ───────────────
+#
+# actionlint is a pure-Go binary built without cgo, so upstream ships ONE Linux
+# build per arch and it is fully static. Measured on 1.7.12:
+#
+#   $ file actionlint_1.7.12_linux_amd64/actionlint
+#   ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked,
+#   Go BuildID=CTuj7gRE8X…, stripped
+#   $ readelf -l … | grep INTERP  → (no output)
+#   $ readelf -d … | grep NEEDED  → (no output)
+#   $ file actionlint_1.7.12_linux_arm64/actionlint
+#   ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically
+#   linked, Go BuildID=BtDNp7hkDEI…, stripped
+#   (same: no PT_INTERP, no DT_NEEDED)
+#
+# No PT_INTERP and no DT_NEEDED means the artifact requires nothing of the
+# host, so both Linux keys are BARE — no `+libc.*` suffix. There is no glibc
+# counterpart to split against. Container legs (ubuntu + alpine + fedora) live
+# in ../mirror-base.yml and are what turn that claim into evidence.
+#
+# ─── Scope (verified against 1.7.0, the floor, and 1.7.12) ──────────────────
+#
+# Upstream also publishes, and this mirror deliberately does not carry:
+#   linux_386, linux_armv6, windows_386   — no GHA runner
+#   freebsd_386, freebsd_amd64            — not an OCX platform
+#   *_checksums.txt                       — sidecar
+#
+# The anchored ^…$ regexes are what keep those out. Resolution verified BOTH
+# ways at both versions: each of the six patterns matches EXACTLY one asset. A
+# pattern matching zero is silently skipped, not an error — it would yield a
+# green run with a missing platform. Both Windows arches exist across the whole
+# range (windows_arm64 is present at 1.7.0), so both stay declared.
+assets:
+  linux/amd64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_linux_amd64\\.tar\\.gz$"
+  linux/arm64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_linux_arm64\\.tar\\.gz$"
+  darwin/amd64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_darwin_amd64\\.tar\\.gz$"
+  darwin/arm64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_darwin_arm64\\.tar\\.gz$"
+  windows/amd64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_windows_amd64\\.zip$"
+  windows/arm64:
+    - "^actionlint_\\d+\\.\\d+\\.\\d+_windows_arm64\\.zip$"
+
+# Every archive is FLAT — no versioned wrapper directory on any platform. The
+# executable (`actionlint`, `actionlint.exe` on Windows) sits at the root beside
+# `LICENSE.txt`, `README.md`, `docs/` and `man/`. Stripping anything would drop
+# the payload, so strip 0 everywhere and one metadata.json serves all six
+# platforms with PATH = ${installPath}.
+asset_type:
+  type: archive
+  strip_components: 0
+
+metadata:
+  default: metadata.json
+
+catalog:
+  logo: logo.svg
+
+versions:
+  min: "1.7.0"
+  new_per_run: 10
+  poll_interval: "0 */6 * * *"
+
+tests:
+  # `script:` resolves from the REPOSITORY ROOT — unlike `metadata.default` and
+  # `catalog.logo` above, which resolve against this spec's own directory.
+  - name: smoke
+    script: actionlint/tests/smoke.star
+
+annotations:
+  # From the Phase 1.5 license gate:
+  #   $ gh api repos/rhysd/actionlint/license --jq '.license.spdx_id'
+  #   MIT
+  org.opencontainers.image.licenses: "MIT"
+
+announce:
+  # Spelled out, not derived from target.repository — the logical name and the
+  # physical path are related by convention only.
+  package: actionlint/actionlint
+  fork: ocx-contrib/index

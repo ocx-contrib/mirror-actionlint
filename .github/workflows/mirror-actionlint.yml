@@ -6,7 +6,7 @@ name: actionlint
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '34 4-23/6 * * *'
   workflow_dispatch:
   push:
     branches: [main]
